@@ -15,7 +15,7 @@
 ## 技术栈
 
 - 客户端：原生微信小程序
-- 服务端：Node.js 20.19+、原生 HTTP、`ws`
+- 服务端：Node.js 20.19+、原生 HTTP、ws
 - 部署：Docker、微信云托管或其他单实例容器平台
 - 质量保障：Node Test Runner、ESLint、GitHub Actions
 
