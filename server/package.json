@@ -1,0 +1,17 @@
+{
+  "name": "ting-together-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "一起听 服务端：REST + WebSocket 房间/点歌/聊天/播放同步，第三方音乐源代理",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}

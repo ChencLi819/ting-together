@@ -1,0 +1,24 @@
+{
+  "name": "ting-together",
+  "version": "1.0.0",
+  "private": true,
+  "description": "一起听 — 微信小程序：双人一起听歌、点歌队列、房间聊天（企业级标准交付）",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "verify": "node scripts/verify.js",
+    "test": "node --test \"server/test/unit/*.test.js\" \"server/test/integration/*.test.js\"",
+    "test:unit": "node --test \"server/test/unit/*.test.js\"",
+    "test:integration": "node --test \"server/test/integration/*.test.js\"",
+    "test:live": "node --test \"server/test/live/*.test.js\"",
+    "lint": "eslint .",
+    "start": "node server/src/index.js",
+    "dev": "node server/src/index.js",
+    "pack:server": "node scripts/pack-server.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.10.0"
+  }
+}

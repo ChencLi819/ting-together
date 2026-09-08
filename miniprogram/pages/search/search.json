@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "点歌",
+  "usingComponents": {
+    "song-item": "/components/song-item/index"
+  }
+}

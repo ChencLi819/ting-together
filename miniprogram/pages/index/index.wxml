@@ -1,0 +1,55 @@
+<view class="page">
+  <view class="hero">
+    <view class="logo">🎧</view>
+    <view class="title">一起听</view>
+    <view class="subtitle muted">和TA一起听歌 · 点歌 · 聊天</view>
+  </view>
+
+  <view class="card panel">
+    <view class="field-label">你的昵称</view>
+    <input style="height: 77rpx; display: block; box-sizing: border-box"
+      class="input"
+      placeholder="给自己起个名字"
+      placeholder-class="input-placeholder"
+      value="{{name}}"
+      maxlength="24"
+      bindinput="onNameInput"
+    />
+
+    <button class="btn-primary create {{creating ? 'disabled' : ''}}" hover-class="btn-hover" bindtap="onCreateRoom">
+      {{creating ? '创建中…' : '创建房间'}}
+    </button>
+
+    <view class="divider"><text class="muted">或</text></view>
+
+    <view class="join-row">
+      <input style="height: 77rpx; display: block; box-sizing: border-box; width: 224rpx"
+        class="input join-input"
+        placeholder="输入 6 位邀请码"
+        placeholder-class="input-placeholder"
+        value="{{code}}"
+        maxlength="6"
+        bindinput="onCodeInput"
+      />
+      <button class="btn-ghost join-btn {{joining ? 'disabled' : ''}}" hover-class="btn-hover" bindtap="onJoinRoom">
+        {{joining ? '加入中…' : '加入'}}
+      </button>
+    </view>
+  </view>
+
+  <view wx:if="{{lastRoom}}" class="card back-room" hover-class="card-hover" bindtap="onBackRoom">
+    <text class="back-icon">↩︎</text>
+    <view class="back-meta">
+      <view>回到房间 {{lastRoom.code}}</view>
+      <view class="muted back-sub">{{lastRoom.desc}}</view>
+    </view>
+  </view>
+
+  <view class="server-row" wx:if="{{!cloudMode}}" bindtap="onServerSetting">
+    <text class="muted">服务端：{{serverBase}}</text>
+    <text class="muted">修改 ›</text>
+  </view>
+  <view class="server-row" wx:else bindtap="onServerSetting">
+    <text class="muted">☁ 已连接云端服务 · 点按查看</text>
+  </view>
+</view>

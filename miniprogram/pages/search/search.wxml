@@ -1,0 +1,44 @@
+<view class="page">
+  <view class="search-bar">
+    <input
+      class="input search-input"
+      placeholder="搜索歌曲 / 歌手"
+      placeholder-class="input-placeholder"
+      value="{{kw}}"
+      confirm-type="search"
+      focus="{{autoFocus}}"
+      bindinput="onInput"
+      bindconfirm="onSearch"
+    />
+    <button class="btn-ghost go-btn {{searching ? 'disabled' : ''}}" hover-class="btn-hover" bindtap="onSearch">
+      {{searching ? '搜索中…' : '搜索'}}
+    </button>
+  </view>
+
+  <view class="source-row">
+    <view class="source-chip {{source === 'netease' ? 'active' : ''}}" hover-class="tag-hover" bindtap="onPickNetease">接口1</view>
+    <view class="source-chip {{source === 'plugin' ? 'active' : ''}}" hover-class="tag-hover" bindtap="onPickPlugin">插件{{pluginName ? '·' + pluginName : ''}}</view>
+    <view class="source-edit" wx:if="{{source === 'plugin'}}" bindtap="onImportPlugin">导入/更新 ›</view>
+  </view>
+
+  <view wx:if="{{history.length && !results.length && !searched}}" class="history">
+    <view class="muted history-title">最近搜索</view>
+    <view class="history-tags">
+      <view class="history-tag" wx:for="{{history}}" wx:key="*this" hover-class="tag-hover" bindtap="onHistoryTap" data-kw="{{item}}">{{item}}</view>
+    </view>
+  </view>
+
+  <scroll-view class="results" scroll-y>
+    <view wx:if="{{searched && !results.length && !searching}}" class="empty muted">没有找到相关歌曲，换个关键词试试</view>
+    <block wx:for="{{results}}" wx:key="index">
+      <song-item
+        track="{{item.track}}"
+        addable
+        add-text="{{item.added ? '已点' : '点歌'}}"
+        disabled="{{item.added}}"
+        sub-badge="{{item.vipLikely ? '可能需要版权' : ''}}"
+        bindadd="onAdd"
+      />
+    </block>
+  </scroll-view>
+</view>

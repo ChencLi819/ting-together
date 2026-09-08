@@ -1,0 +1,110 @@
+.page {
+  min-height: 100vh;
+  padding: 0 48rpx;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(1200rpx 600rpx at 50% -10%, #10304a 0%, #0d141f 55%) no-repeat;
+}
+
+.hero {
+  margin-top: 110rpx;
+  text-align: center;
+}
+
+.logo {
+  font-size: 112rpx;
+  line-height: 1;
+}
+
+.title {
+  margin-top: 20rpx;
+  font-size: 56rpx;
+  font-weight: 700;
+  letter-spacing: 4rpx;
+}
+
+.subtitle {
+  margin-top: 12rpx;
+}
+
+.panel {
+  margin-top: 56rpx;
+  padding: 44rpx 36rpx 48rpx;
+}
+
+.field-label {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 16rpx;
+}
+
+.create {
+  margin-top: 40rpx;
+}
+
+.btn-hover {
+  opacity: 0.85;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 40rpx 0 32rpx;
+}
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1rpx;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0 24rpx;
+}
+
+.join-row {
+  display: flex;
+  gap: 20rpx;
+}
+
+.join-input {
+  flex: 1;
+  letter-spacing: 6rpx;
+  text-transform: uppercase;
+}
+
+.join-btn {
+  width: 190rpx;
+}
+
+.back-room {
+  margin-top: 32rpx;
+  padding: 24rpx 28rpx;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.card-hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.back-icon {
+  font-size: 36rpx;
+  color: #38b6ff;
+}
+
+.back-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.back-sub {
+  margin-top: 4rpx;
+}
+
+.server-row {
+  margin-top: auto;
+  padding: 40rpx 0 calc(40rpx + env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: space-between;
+}

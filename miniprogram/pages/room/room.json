@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "房间",
+  "disableScroll": true,
+  "usingComponents": {
+    "song-item": "/components/song-item/index"
+  }
+}

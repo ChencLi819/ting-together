@@ -1,0 +1,18 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/room/room",
+    "pages/search/search"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#0d141f",
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "一起听",
+    "backgroundColor": "#0d141f",
+    "backgroundTextStyle": "light"
+  },
+  "requiredBackgroundModes": ["audio"],
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

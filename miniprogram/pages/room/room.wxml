@@ -1,0 +1,151 @@
+<view class="page">
+  <!-- 顶部：房间码 / 在线成员 / 模式 -->
+  <view class="topbar">
+    <view class="code-chip" hover-class="chip-hover" bindtap="onCopyCode">
+      <text class="code-label">邀请码</text>
+      <text class="code-value">{{code}}</text>
+      <text class="code-copy">复制</text>
+    </view>
+    <view class="online" wx:if="{{users.length}}">
+      <view class="avatar" wx:for="{{usersShow}}" wx:key="id">{{item.name[0]}}</view>
+      <text class="muted online-count">{{users.length}}人</text>
+    </view>
+    <view wx:if="{{isHost}}" class="mode-btn" hover-class="chip-hover" bindtap="onSwitchMode">
+      {{mode === 'host' ? '点播模式' : '自由模式'}}
+    </view>
+    <view class="leave-btn" hover-class="chip-hover" bindtap="onLeaveRoom">退出</view>
+  </view>
+
+  <!-- 中部：封面 / 歌词 -->
+  <view class="stage" bindtap="onToggleLyric">
+    <block wx:if="{{track}}">
+      <view class="disc-wrap" wx:if="{{!lyricMode}}">
+        <view class="disc" style="transform: rotate({{discAngle}}deg)">
+          <image wx:if="{{coverOk && track.picUrl}}" class="cover" src="{{track.picUrl}}" binderror="onCoverError" />
+          <view wx:else class="cover cover-fallback">♪</view>
+          <view class="disc-hole"></view>
+        </view>
+        <view wx:if="{{playbackLoading}}" class="loading-tip">正在准备播放…</view>
+        <view wx:if="{{track.urlTrial}}" class="loading-tip warn">该曲目为试听片段</view>
+      </view>
+      <scroll-view wx:else class="lyric" scroll-y scroll-with-animation scroll-into-view="lyric-line-{{lyricIndex}}">
+        <view
+          wx:for="{{lyricLines}}"
+          wx:key="index"
+          id="lyric-line-{{index}}"
+          class="lyric-line {{index === lyricIndex ? 'active' : ''}}"
+        >{{item.text || '···'}}</view>
+        <view wx:if="{{!lyricLines.length}}" class="lyric-line muted">暂无歌词</view>
+      </scroll-view>
+      <view class="track-meta">
+        <view class="track-title ellipsis">{{track.title}}</view>
+        <view class="muted ellipsis">{{track.artist}}{{track.album ? ' · ' + track.album : ''}}</view>
+      </view>
+    </block>
+    <view wx:else class="empty-stage">
+      <view class="empty-icon">🎵</view>
+      <view class="empty-text">还没有歌曲</view>
+      <view class="muted">点一首歌，开始一起听吧</view>
+      <view class="empty-request-btn" hover-class="ctrl-hover" bindtap="onGoSearch">点歌</view>
+    </view>
+  </view>
+
+  <!-- 进度条 -->
+  <view class="progress" wx:if="{{track}}">
+    <text class="muted time">{{posText}}</text>
+    <slider
+      class="slider"
+      min="0"
+      max="{{sliderMax}}"
+      step="1"
+      value="{{sliderValue}}"
+      activeColor="#38b6ff"
+      backgroundColor="rgba(255,255,255,0.15)"
+      block-size="16"
+      block-color="#ffffff"
+      disabled="{{playbackControlDisabled || dragging}}"
+      bindchanging="onSliderChanging"
+      bindchange="onSliderChange"
+    />
+    <text class="muted time">{{durationText}}</text>
+  </view>
+
+  <!-- 控制区 -->
+  <view class="controls" wx:if="{{track}}">
+    <view class="ctrl side" hover-class="ctrl-hover" bindtap="onPrev">
+      <text class="ctrl-icon">⏮</text>
+    </view>
+    <view class="ctrl main {{playbackControlDisabled ? 'disabled' : ''}}" hover-class="ctrl-hover" bindtap="onTogglePlay">
+      <text class="ctrl-icon main-icon">{{playbackLoading ? '…' : (playing ? '⏸' : '▶')}}</text>
+    </view>
+    <view class="ctrl side" hover-class="ctrl-hover" bindtap="onNext">
+      <text class="ctrl-icon">⏭</text>
+    </view>
+    <view class="quality-btn" hover-class="ctrl-hover" bindtap="onSwitchQuality">{{qualityText}}</view>
+    <view class="request-btn" hover-class="ctrl-hover" bindtap="onGoSearch">点歌</view>
+  </view>
+
+  <!-- 下方：队列 / 聊天 -->
+  <view class="panel-wrap">
+    <view class="tabs">
+      <view class="tab {{tab === 'queue' ? 'active' : ''}}" bindtap="onTabQueue">
+        播放队列<text wx:if="{{queue.length}}" class="badge">{{queue.length}}</text>
+      </view>
+      <view class="tab {{tab === 'chat' ? 'active' : ''}}" bindtap="onTabChat">
+        聊天<text wx:if="{{chat.length}}" class="badge">{{chat.length}}</text>
+      </view>
+      <view class="conn {{connected ? 'on' : 'off'}}">{{connected ? '已连接' : '重连中…'}}</view>
+    </view>
+
+    <scroll-view wx:if="{{tab === 'queue'}}" class="list" scroll-y>
+      <view wx:if="{{!queue.length}}" class="empty-list muted">队列空空如也，点首歌唱起来～</view>
+      <block wx:for="{{queue}}" wx:key="qid">
+        <song-item
+          track="{{item.track}}"
+          qid="{{item.qid}}"
+          tappable
+          removable="{{item.removable}}"
+          sub-badge="{{item.requestedByName ? 'TA点歌' : ''}}"
+          bindplayitem="onPlayQueue"
+          bindremove="onRemoveQueue"
+        />
+      </block>
+    </scroll-view>
+
+    <block wx:else>
+      <scroll-view class="list chat-list" scroll-y scroll-into-view="{{lastChatAnchor}}">
+        <view wx:if="{{!chat.length}}" class="empty-list muted">打个招呼吧～</view>
+        <view
+          wx:for="{{chat}}"
+          wx:key="id"
+          id="chat-{{index}}"
+          class="msg {{item.kind === 'sys' ? 'msg-sys' : (item.self ? 'msg-self' : 'msg-other')}}"
+        >
+          <block wx:if="{{item.kind === 'sys'}}">
+            <text class="sys-text">{{item.text}}</text>
+          </block>
+          <block wx:else>
+            <view class="bubble">
+              <text class="bubble-name">{{item.name}}</text>
+              <text class="bubble-text">{{item.text}}</text>
+            </view>
+            <text class="muted msg-time">{{item.tsText}}</text>
+          </block>
+        </view>
+      </scroll-view>
+      <view class="chat-input-row">
+        <input
+          class="input chat-input"
+          placeholder="说点什么…"
+          placeholder-class="input-placeholder"
+          value="{{chatText}}"
+          confirm-type="send"
+          maxlength="300"
+          bindinput="onChatInput"
+          bindconfirm="onSendChat"
+        />
+        <button class="btn-ghost send-btn" hover-class="btn-hover" bindtap="onSendChat">发送</button>
+      </view>
+    </block>
+  </view>
+</view>

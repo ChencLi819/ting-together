@@ -1,0 +1,31 @@
+<view class="song-item" bindtap="onTap">
+  <view class="cover-wrap">
+    <image
+      wx:if="{{coverOk && track.picUrl}}"
+      class="cover"
+      src="{{track.picUrl}}"
+      lazy-load
+      binderror="onCoverError"
+    />
+    <view wx:else class="cover cover-fallback">♪</view>
+  </view>
+  <view class="meta">
+    <view class="title ellipsis">{{track.title}}</view>
+    <view class="sub ellipsis muted">{{track.artist}}{{track.album ? ' · ' + track.album : ''}}{{subBadge ? ' · ' + subBadge : ''}}</view>
+  </view>
+  <view class="right">
+    <text wx:if="{{track.durationText}}" class="muted duration">{{track.durationText}}</text>
+    <view
+      wx:if="{{removable}}"
+      class="action-btn remove"
+      hover-class="action-btn-hover"
+      catchtap="onRemove"
+    >移除</view>
+    <view
+      wx:elif="{{addable}}"
+      class="action-btn add {{disabled ? 'disabled' : ''}}"
+      hover-class="action-btn-hover"
+      catchtap="onAdd"
+    >{{addText || '点歌'}}</view>
+  </view>
+</view>

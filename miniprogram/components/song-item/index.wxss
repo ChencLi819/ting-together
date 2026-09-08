@@ -1,0 +1,77 @@
+.song-item {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 8rpx;
+}
+
+.cover-wrap {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.cover {
+  width: 100%;
+  height: 100%;
+}
+
+.cover-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  color: rgba(255, 255, 255, 0.4);
+  background: linear-gradient(135deg, #14273a, #1d3a55);
+}
+
+.meta {
+  flex: 1;
+  min-width: 0;
+  margin: 0 20rpx;
+}
+
+.title {
+  font-size: 30rpx;
+  color: #f3f3f8;
+}
+
+.sub {
+  margin-top: 6rpx;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.duration {
+  margin-right: 16rpx;
+}
+
+.action-btn {
+  font-size: 26rpx;
+  padding: 10rpx 26rpx;
+  border-radius: 30rpx;
+}
+
+.action-btn.add {
+  color: #fff;
+  background: linear-gradient(135deg, #38b6ff, #1273e6);
+}
+
+.action-btn.remove {
+  color: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.action-btn.disabled {
+  opacity: 0.4;
+}
+
+.action-btn-hover {
+  opacity: 0.75;
+}
