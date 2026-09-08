@@ -98,8 +98,6 @@ npm run pack:server
 - `NODE_ENV=production`
 - 插件功能开放时必须配置高强度 `PLUGIN_IMPORT_TOKEN`
 - 房间状态当前保存在进程内，服务副本数必须为 1
-- 使用 HTTPS/WSS 或微信云托管内部通道
-- 通过 `/healthz` 配置健康检查
 
 完整步骤见 [部署指南](docs/DEPLOY.md) 与 [运行手册](docs/RUNBOOK.md)。
 
