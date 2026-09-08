@@ -38,4 +38,22 @@ function playbackViewState(playback) {
   };
 }
 
-module.exports = { normalizeRoomSnapshot, playbackViewState };
+/** 统一不同版本/传输通道的在线成员字段，人数作为独立标量每次快照刷新。 */
+function roomPresenceView(snapshot) {
+  const users = snapshot && Array.isArray(snapshot.users) ? snapshot.users : [];
+  const explicitOnline = Number(snapshot && snapshot.onlineCount);
+  const memberCount = Number(snapshot && snapshot.memberCount);
+  let onlineCount;
+  if (Number.isFinite(explicitOnline) && explicitOnline >= 0) {
+    onlineCount = Math.floor(explicitOnline);
+  } else if (snapshot && Array.isArray(snapshot.users)) {
+    onlineCount = users.length;
+  } else if (Number.isFinite(memberCount) && memberCount >= 0) {
+    onlineCount = Math.floor(memberCount);
+  } else {
+    onlineCount = 0;
+  }
+  return { users, onlineCount };
+}
+
+module.exports = { normalizeRoomSnapshot, playbackViewState, roomPresenceView };

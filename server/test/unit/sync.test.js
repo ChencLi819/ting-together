@@ -11,6 +11,7 @@ function makeAudio() {
   return {
     paused: true,
     currentTime: 0,
+    duration: 0,
     seeks: [],
     stopCount: 0,
     playCount: 0,
@@ -208,5 +209,106 @@ test('播放按钮按服务器状态决策，不能被模拟器不可靠的 audi
   audio.paused = false; // 反向模拟本地状态滞后
   engine.userTogglePlay();
   assert.equal(sent.at(-1).action, 'play', '服务器为 paused 时，点击必须始终上报 play');
+  engine.stop();
+});
+
+test('自然结束：currentTime 归零仍上报一次 end，缓冲期假 ended 不得误切歌', () => {
+  const { createSyncEngine } = require(SYNC_PATH);
+  const sent = [];
+  const engine = createSyncEngine({ sendCtl: (action, extra) => sent.push({ action, extra }) });
+  engine.applyState({ playback: playback() });
+  audio.emit('canplay');
+  sent.length = 0;
+
+  audio.duration = 180;
+  audio.currentTime = 20;
+  audio.emit('timeupdate');
+  audio.emit('ended');
+  assert.equal(sent.some((msg) => msg.action === 'end'), false, '远离曲尾的假 ended 必须忽略');
+
+  audio.currentTime = 179.6;
+  audio.emit('timeupdate');
+  audio.currentTime = 0; // BackgroundAudioManager 在 ended 回调前可能已归零
+  audio.paused = true;
+  audio.emit('ended');
+  audio.emit('ended');
+  audio.emit('error');
+  assert.deepEqual(sent, [{ action: 'end', extra: { trackId: 'm001' } }], '真实结束只上报一次');
+  engine.stop();
+});
+
+test('试听片段：使用音频真实时长结束并更新进度条总时长', () => {
+  const { createSyncEngine } = require(SYNC_PATH);
+  const sent = [];
+  const engine = createSyncEngine({ sendCtl: (action, extra) => sent.push({ action, extra }) });
+  engine.applyState({ playback: playback({ durationSec: 180, urlTrial: true }) });
+  audio.duration = 30;
+  audio.emit('canplay');
+  audio.currentTime = 29.7;
+  audio.emit('timeupdate');
+  assert.equal(engine.displayDuration(), 30, '进度条应采用实际试听长度而不是完整歌曲元数据');
+
+  audio.currentTime = 0;
+  audio.emit('ended');
+  assert.equal(sent.at(-1).action, 'end');
+  engine.stop();
+});
+
+test('旧协议自然结束使用 skip；断线时保留结束动作并在快照恢复后补发', () => {
+  const { createSyncEngine } = require(SYNC_PATH);
+  let connected = false;
+  const sent = [];
+  const sendCtl = (action, extra) => {
+    if (!connected) return false;
+    sent.push({ action, extra });
+    return true;
+  };
+  const engine = createSyncEngine({ sendCtl });
+  const legacy = playback({ protocolVersion: 1, anchorMs: 123, durationSec: 60 });
+  engine.applyState({ playback: legacy });
+  audio.duration = 60;
+  audio.currentTime = 59.8;
+  audio.emit('timeupdate');
+  audio.currentTime = 0;
+  audio.emit('ended');
+  assert.equal(sent.length, 0, '断线时不能假装已经上报成功');
+
+  connected = true;
+  engine.applyState({ playback: { ...legacy, positionSec: 60, startAtSec: 60 } });
+  assert.deepEqual(sent, [{ action: 'skip', extra: { trackId: 'm001' } }]);
+  engine.stop();
+});
+
+test('手动下一首携带当前曲目 ID，迟到或重复动作不得跳过新曲', () => {
+  const { createSyncEngine } = require(SYNC_PATH);
+  const sent = [];
+  const engine = createSyncEngine({ sendCtl: (action, extra) => sent.push({ action, extra }) });
+  engine.applyState({ playback: playback() });
+
+  engine.userNext();
+
+  assert.deepEqual(sent.at(-1), { action: 'skip', extra: { trackId: 'm001' } });
+  engine.stop();
+});
+
+test('新曲 ready 在断线时不得假装成功，恢复同曲快照后必须补发', () => {
+  const { createSyncEngine } = require(SYNC_PATH);
+  let connected = false;
+  const sent = [];
+  const engine = createSyncEngine({
+    sendCtl: (action, extra) => {
+      if (!connected) return false;
+      sent.push({ action, extra });
+      return true;
+    },
+  });
+  const loading = playback({ status: 'loading', startAtSec: 0, positionSec: 0 });
+  engine.applyState({ playback: loading });
+  audio.emit('canplay');
+  assert.equal(sent.length, 0);
+
+  connected = true;
+  engine.applyState({ playback: { ...loading } });
+  assert.deepEqual(sent, [{ action: 'ready', extra: { trackId: 'm001' } }]);
   engine.stop();
 });

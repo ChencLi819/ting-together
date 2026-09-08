@@ -6,9 +6,9 @@
       <text class="code-value">{{code}}</text>
       <text class="code-copy">复制</text>
     </view>
-    <view class="online" wx:if="{{users.length}}">
+    <view class="online" wx:if="{{onlineCount > 0}}">
       <view class="avatar" wx:for="{{usersShow}}" wx:key="id">{{item.name[0]}}</view>
-      <text class="muted online-count">{{users.length}}人</text>
+      <text class="muted online-count">{{onlineCount}}人</text>
     </view>
     <view wx:if="{{isHost}}" class="mode-btn" hover-class="chip-hover" bindtap="onSwitchMode">
       {{mode === 'host' ? '点播模式' : '自由模式'}}
@@ -28,7 +28,8 @@
         <view wx:if="{{playbackLoading}}" class="loading-tip">正在准备播放…</view>
         <view wx:if="{{track.urlTrial}}" class="loading-tip warn">该曲目为试听片段</view>
       </view>
-      <scroll-view wx:else class="lyric" scroll-y scroll-with-animation scroll-into-view="lyric-line-{{lyricIndex}}">
+      <scroll-view wx:else class="lyric" scroll-y scroll-with-animation scroll-top="{{lyricScrollTop}}">
+        <view class="lyric-spacer"></view>
         <view
           wx:for="{{lyricLines}}"
           wx:key="index"
@@ -36,6 +37,7 @@
           class="lyric-line {{index === lyricIndex ? 'active' : ''}}"
         >{{item.text || '···'}}</view>
         <view wx:if="{{!lyricLines.length}}" class="lyric-line muted">暂无歌词</view>
+        <view class="lyric-spacer"></view>
       </scroll-view>
       <view class="track-meta">
         <view class="track-title ellipsis">{{track.title}}</view>

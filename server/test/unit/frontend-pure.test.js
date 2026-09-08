@@ -4,9 +4,10 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 
 // 直接复用小程序端的纯函数模块，保证前后端行为一致
-const { parseLrc, currentLineIndex } = require('../../../miniprogram/utils/lyric');
+const { parseLrc, currentLineIndex, centeredScrollTop } = require('../../../miniprogram/utils/lyric');
 const { formatTime, clamp, formatClock } = require('../../../miniprogram/utils/format');
 const { shouldDiscardMembership } = require('../../../miniprogram/utils/session');
+const { roomPresenceView } = require('../../../miniprogram/utils/playback');
 
 test('LRC：解析、多时间标签、排序、元信息过滤', () => {
   const lrc = [
@@ -41,6 +42,32 @@ test('当前行定位：二段式边界', () => {
   assert.equal(currentLineIndex(lines, 5), 1);
   assert.equal(currentLineIndex(lines, 99), 2, '最后一行持续高亮');
   assert.equal(currentLineIndex([], 1), -1);
+});
+
+test('歌词滚动：高亮行定位到可视区域正中并限制最小滚动位置', () => {
+  assert.equal(centeredScrollTop({
+    currentScrollTop: 120,
+    viewportTop: 100,
+    viewportHeight: 400,
+    lineTop: 300,
+    lineHeight: 40,
+  }), 140);
+  assert.equal(centeredScrollTop({
+    currentScrollTop: 0,
+    viewportTop: 100,
+    viewportHeight: 400,
+    lineTop: 110,
+    lineHeight: 40,
+  }), 0);
+});
+
+test('房间人数：优先使用在线人数，兼容仅有用户列表或成员总数的快照', () => {
+  assert.deepEqual(roomPresenceView({ users: [{ id: 'u1' }], onlineCount: 2, memberCount: 3 }), {
+    users: [{ id: 'u1' }],
+    onlineCount: 2,
+  });
+  assert.equal(roomPresenceView({ users: [{ id: 'u1' }, { id: 'u2' }], memberCount: 3 }).onlineCount, 2);
+  assert.equal(roomPresenceView({ memberCount: 3 }).onlineCount, 3);
 });
 
 test('时间格式化', () => {

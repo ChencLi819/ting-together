@@ -6,7 +6,7 @@ const runtime = require('../../utils/runtime');
 const { api } = require('../../utils/request');
 const { formatTime, formatClock } = require('../../utils/format');
 const lyricUtil = require('../../utils/lyric');
-const { normalizeRoomSnapshot, playbackViewState } = require('../../utils/playback');
+const { normalizeRoomSnapshot, playbackViewState, roomPresenceView } = require('../../utils/playback');
 
 const TICK_MS = 400;
 const CHAT_LIMIT = 200;
@@ -20,6 +20,7 @@ Page({
     room: null,
     users: [],
     usersShow: [],
+    onlineCount: 0,
     qualityText: '高品 320k',
     track: null,
     playing: false,
@@ -29,6 +30,7 @@ Page({
     lyricMode: false,
     lyricLines: [],
     lyricIndex: -1,
+    lyricScrollTop: 0,
     posText: '00:00',
     durationText: '00:00',
     sliderValue: 0,
@@ -121,6 +123,7 @@ Page({
     const myUserId = this.data.myUserId;
     const isHost = snapshot.hostUserId === myUserId;
     const pb = snapshot.playback;
+    const presence = roomPresenceView(snapshot);
 
     const track = pb
       ? {
@@ -153,11 +156,12 @@ Page({
     this.loadedTrackKey = trackKey;
 
     // —— 轻量化：大对象仅在内容变化时更新（真机渲染减负，避免周期性 JS 卡顿）——
-    const usersSig = (snapshot.users || []).map(function (u) { return u.id; }).join(',');
+    const usersSig = presence.users.map(function (u) { return u.id + ':' + u.name; }).join(',');
     // 房主迁移会改变同一队列项的 removable 权限，签名必须包含权限态。
     const queueSig = (isHost ? 'host:' : 'member:') + queue.map(function (q) { return q.qid + ':' + (q.removable ? '1' : '0'); }).join(',');
     const patch = {
       isHost: isHost,
+      onlineCount: presence.onlineCount,
       mode: snapshot.mode,
       qualityText: QUALITY_TEXT[snapshot.quality] || snapshot.quality || '高品',
       track: track,
@@ -170,8 +174,8 @@ Page({
     };
     if (usersSig !== this._usersSig) {
       this._usersSig = usersSig;
-      patch.users = snapshot.users || [];
-      patch.usersShow = (snapshot.users || []).slice(0, 3);
+      patch.users = presence.users;
+      patch.usersShow = presence.users.slice(0, 3);
     }
     if (queueSig !== this._queueSig) {
       this._queueSig = queueSig;
@@ -189,7 +193,7 @@ Page({
     }
     if (!track) {
       this.lyricTrackKey = '';
-      this.setData({ lyricLines: [], lyricIndex: -1 });
+      this.setData({ lyricLines: [], lyricIndex: -1, lyricScrollTop: 0 });
     }
 
     store.set({ room: snapshot });
@@ -199,7 +203,7 @@ Page({
   loadLyric(track) {
     this.lyricTrackKey = `${track.source}:${track.trackId}`;
     const key = this.lyricTrackKey;
-    this.setData({ lyricLines: [], lyricIndex: -1 });
+    this.setData({ lyricLines: [], lyricIndex: -1, lyricScrollTop: 0 });
     api
       .fetchLyric(track)
       .then((res) => {
@@ -359,7 +363,36 @@ Page({
 
   onToggleLyric() {
     if (!this.data.track) return;
-    this.setData({ lyricMode: !this.data.lyricMode });
+    const lyricMode = !this.data.lyricMode;
+    this.setData({ lyricMode }, () => {
+      if (lyricMode && this.data.lyricIndex >= 0) this.centerActiveLyric(this.data.lyricIndex);
+    });
+  },
+
+  /** 用实际渲染尺寸把高亮歌词滚到舞台正中，避免 scroll-into-view 顶部对齐。 */
+  centerActiveLyric(index) {
+    if (!this.data.lyricMode || index < 0 || typeof wx.createSelectorQuery !== 'function') return;
+    const query = wx.createSelectorQuery().in(this);
+    query.select('.lyric').boundingClientRect();
+    query.select('.lyric').scrollOffset();
+    query.select(`#lyric-line-${index}`).boundingClientRect();
+    query.exec((results) => {
+      if (index !== this.data.lyricIndex) return;
+      const viewport = results && results[0];
+      const scroll = results && results[1];
+      const line = results && results[2];
+      if (!viewport || !scroll || !line) return;
+      const lyricScrollTop = lyricUtil.centeredScrollTop({
+        currentScrollTop: scroll.scrollTop,
+        viewportTop: viewport.top,
+        viewportHeight: viewport.height,
+        lineTop: line.top,
+        lineHeight: line.height,
+      });
+      if (Math.abs(lyricScrollTop - this.data.lyricScrollTop) > 1) {
+        this.setData({ lyricScrollTop });
+      }
+    });
   },
 
   onCopyCode() {
@@ -387,19 +420,26 @@ Page({
     const track = this.data.track;
     if (!track) return;
     const patch = {};
+    let lyricToCenter = -1;
     // 旋钮角度：播放时按 24s/圈 累计（角度值在 data 中，不受渲染重置影响）
     if (track.url && this.data.playing) {
       this._discAngle = ((this._discAngle || 0) + (TICK_MS / 1000) * 15) % 360;
       patch.discAngle = Math.round(this._discAngle);
     }
     if (track.url && !this.data.dragging) {
-      const pos = this.engine.displayPosition();
+      const duration = this.engine.displayDuration();
+      const pos = duration > 0 ? Math.min(this.engine.displayPosition(), duration) : this.engine.displayPosition();
       if (this._lastUiPos !== undefined && Math.abs(pos - this._lastUiPos) > 1.5) {
         console.warn('[jump-ui] 显示进度跳变: ' + this._lastUiPos.toFixed(2) + '→' + pos.toFixed(2) + ' (0.4s 内) paused=' + this.engine.audio.paused);
       }
       this._lastUiPos = pos;
       patch.sliderValue = Math.floor(pos);
       patch.posText = formatTime(pos);
+      const sliderMax = duration > 0 ? Math.floor(duration) : 0;
+      if (sliderMax !== this.data.sliderMax) {
+        patch.sliderMax = sliderMax;
+        patch.durationText = formatTime(duration);
+      }
     } else if (!track.url) {
       // 切音质重取流时 status 仍可能是 playing；track 上不存在旧版 isPlaying 字段。
       patch.posText = formatTime(track.status === 'playing' ? this.engine.displayPosition() : 0);
@@ -409,8 +449,13 @@ Page({
       if (idx !== this._idxCache) {
         this._idxCache = idx;
         patch.lyricIndex = idx;
+        lyricToCenter = idx;
       }
     }
-    if (Object.keys(patch).length > 0) this.setData(patch);
+    if (Object.keys(patch).length > 0) {
+      this.setData(patch, () => {
+        if (lyricToCenter >= 0) this.centerActiveLyric(lyricToCenter);
+      });
+    }
   },
 });

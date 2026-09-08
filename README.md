@@ -9,13 +9,14 @@
 - 共享点歌队列与队列插播
 - 房间聊天、成员在线状态和房主迁移
 - 标准、高品、无损三档房间级音质
+- QQ 音乐、网易云音乐及可信 MusicFree 插件源
 - WebSocket 实时通道；不可用时自动降级为 HTTP 轮询
 - 新旧播放协议兼容，适配已部署的旧版云端服务
 
 ## 技术栈
 
 - 客户端：原生微信小程序
-- 服务端：Node.js 20.19+、原生 HTTP、ws
+- 服务端：Node.js 20.19+、原生 HTTP、`ws`
 - 部署：Docker、微信云托管或其他单实例容器平台
 - 质量保障：Node Test Runner、ESLint、GitHub Actions
 
@@ -98,6 +99,8 @@ npm run pack:server
 - `NODE_ENV=production`
 - 插件功能开放时必须配置高强度 `PLUGIN_IMPORT_TOKEN`
 - 房间状态当前保存在进程内，服务副本数必须为 1
+- 使用 HTTPS/WSS 或微信云托管内部通道
+- 通过 `/healthz` 配置健康检查
 
 完整步骤见 [部署指南](docs/DEPLOY.md) 与 [运行手册](docs/RUNBOOK.md)。
 
@@ -137,6 +140,8 @@ NCM_COOKIE=
 搜索关键词、歌曲标识、音频和封面请求可能由第三方音乐服务处理。正式发布前，运营者必须按照实际部署、日志和第三方服务情况完善《小程序用户隐私保护指引》，并提供清除本地数据或退出服务的方式。
 
 ## 安全
+
+- 不要提交 `server/.env`、Cookie、令牌、日志、`server/data/` 或部署产物。
 - `NCM_COOKIE` 属于网易云账号凭据，只能通过部署平台环境变量注入。
 - MusicFree 插件会在服务端执行第三方 JavaScript；仅导入可信来源，并限制导入权限。
 - 安全问题请通过仓库的 GitHub Security Advisory 私下报告，参见 [SECURITY.md](SECURITY.md)。

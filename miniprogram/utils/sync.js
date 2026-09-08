@@ -26,9 +26,15 @@ function createSyncEngine({ sendCtl } = {}) {
   let state = null;          // 最近一次房间快照
   let loadedKey = '';        // 已装载的音频 key（source:trackId:url）
   let readySentKey = '';     // 已上报 ready 的曲目 key
+  let mediaReadyKey = '';    // 已收到 canplay 的曲目 key（允许断线后重试 ready）
+  let initialSeekKey = '';   // 初始 seek 每个媒体只执行一次，避免重复 canplay 回退
   let stopped = true;
   let lastTimeUpdateAt = 0; // 最近一次 onTimeUpdate 的本地时刻（播放态判定依据）
   let lastAudioTimeSec = NaN;
+  let lastPlaybackPositionSec = NaN; // ended 前最后一次可信进度（部分设备会先把 currentTime 归零）
+  let observedDurationSec = 0;       // 媒体实际时长；试听流可能短于歌曲元数据
+  let endedSentKey = '';             // 同一音频的自然结束只上报一次
+  let pendingEndKey = '';            // 断线时保留，收到同曲快照后补发
 
   function trackKey(pb) {
     if (!pb || !pb.trackId) return '';
@@ -47,8 +53,14 @@ function createSyncEngine({ sendCtl } = {}) {
   function loadTrack(pb) {
     loadedKey = trackKey(pb);
     readySentKey = '';
+    mediaReadyKey = '';
+    initialSeekKey = '';
+    endedSentKey = '';
+    pendingEndKey = '';
     setAudioMeta(pb);
     lastAudioTimeSec = NaN;
+    lastPlaybackPositionSec = NaN;
+    observedDurationSec = 0;
     lastTimeUpdateAt = 0;
     audio.src = pb.url; // BG 后端：设置 src 即自动播放
   }
@@ -63,7 +75,13 @@ function createSyncEngine({ sendCtl } = {}) {
     stopped = true;
     loadedKey = '';
     readySentKey = '';
+    mediaReadyKey = '';
+    initialSeekKey = '';
+    endedSentKey = '';
+    pendingEndKey = '';
     lastAudioTimeSec = NaN;
+    lastPlaybackPositionSec = NaN;
+    observedDurationSec = 0;
     lastTimeUpdateAt = 0;
   }
 
@@ -83,6 +101,34 @@ function createSyncEngine({ sendCtl } = {}) {
     const previousStart = Number(previous.startAtSec) || 0;
     const currentStart = Number(current.startAtSec) || 0;
     return previous.status !== current.status || Math.abs(previousStart - currentStart) > 0.05;
+  }
+
+  function captureMediaDuration() {
+    const duration = Number(audio.duration);
+    if (Number.isFinite(duration) && duration > 0) observedDurationSec = duration;
+    return observedDurationSec;
+  }
+
+  function reportNaturalEnd(pb) {
+    const key = trackKey(pb);
+    if (!key || !sendCtl || endedSentKey === key) return false;
+    const sent = sendCtl(isLegacy(pb) ? 'skip' : 'end', { trackId: pb.trackId });
+    if (sent === false) {
+      pendingEndKey = key;
+      return false;
+    }
+    pendingEndKey = '';
+    endedSentKey = key;
+    return true;
+  }
+
+  function reportReady(pb) {
+    const key = trackKey(pb);
+    if (!key || isLegacy(pb) || !sendCtl || mediaReadyKey !== key || readySentKey === key) return false;
+    const sent = sendCtl('ready', { trackId: pb.trackId });
+    if (sent === false) return false;
+    readySentKey = key;
+    return true;
   }
 
   /** 应用服务端快照（WS / 轮询通道都汇到这里） */
@@ -105,6 +151,11 @@ function createSyncEngine({ sendCtl } = {}) {
     }
 
     const key = trackKey(pb);
+    if (pendingEndKey === key && endedSentKey !== key) {
+      reportNaturalEnd(pb);
+    }
+    // canplay 已发生但首次 ready 遇到断线：任一同曲快照到达时补发。
+    reportReady(pb);
     if (key !== loadedKey) {
       // 新曲目（点歌/切歌/插播/中途进房）：装载并从对齐点起步
       stopped = false;
@@ -133,10 +184,7 @@ function createSyncEngine({ sendCtl } = {}) {
         if (!Number.isFinite(cur) || Math.abs(cur - pos) > 0.25) trySeek(pos);
       }
       // 防御：状态已 playing 但 ready 上报被丢（通道未就绪期）→ 补报
-      if (!isLegacy(pb) && readySentKey !== trackKey(pb) && sendCtl) {
-        readySentKey = trackKey(pb);
-        sendCtl('ready', { trackId: pb.trackId });
-      }
+      reportReady(pb);
       if (audio.paused) audio.play();
     }
   }
@@ -147,6 +195,7 @@ function createSyncEngine({ sendCtl } = {}) {
       audio.seek(pos);
       // 显式 seek 后重置观测基准，避免把命令本身误报为音频时钟跳变。
       lastAudioTimeSec = NaN;
+      lastPlaybackPositionSec = pos;
       lastTimeUpdateAt = 0;
     } catch (e) {
       // 忽略，等待下一轮校正
@@ -160,6 +209,7 @@ function createSyncEngine({ sendCtl } = {}) {
     if (pb.status !== 'playing') return;
     const cur = Number(audio.currentTime);
     if (!Number.isFinite(cur)) return;
+    captureMediaDuration();
     if (lastTimeUpdateAt > 0 && Number.isFinite(lastAudioTimeSec)) {
       const wallDelta = Math.max(0, (nowMs - lastTimeUpdateAt) / 1000);
       const audioDelta = cur - lastAudioTimeSec;
@@ -169,27 +219,35 @@ function createSyncEngine({ sendCtl } = {}) {
       }
     }
     lastAudioTimeSec = cur;
+    lastPlaybackPositionSec = cur;
     lastTimeUpdateAt = nowMs;
   }
 
   function onEnded() {
     const pb = state && state.playback;
-    const dur = pb && pb.durationSec > 0 ? pb.durationSec : 0;
+    if (!pb || !pb.trackId) return;
+    const mediaDuration = captureMediaDuration();
+    const duration = mediaDuration > 0 ? mediaDuration : (pb.durationSec > 0 ? pb.durationSec : 0);
     const cur = Number(audio.currentTime);
-    // 假结束过滤：缓冲停顿可能触发假 onEnded（进度远未到曲尾）→ 忽略，等待音频恢复
-    if (dur > 0 && Number.isFinite(cur) && cur < dur - 2) {
+    const observedPosition = Math.max(
+      Number.isFinite(cur) ? cur : 0,
+      Number.isFinite(lastPlaybackPositionSec) ? lastPlaybackPositionSec : 0
+    );
+    const tolerance = duration > 0 ? Math.max(2, duration * 0.02) : 0;
+    // 假结束过滤：用最后一次可信进度判断，不能只读 ended 时可能已经归零的 currentTime。
+    // 试听 URL 没暴露媒体时长时，歌曲元数据不是有效终点，交由原生 ended 事件判定。
+    if (duration > 0 && !(pb.urlTrial && mediaDuration <= 0) && observedPosition < duration - tolerance) {
       return;
     }
-    if (pb && pb.trackId && sendCtl) {
-      // 上报播完（服务端走结束栅栏：收齐全员 end 或 3s 兜底后切下一首）
-      sendCtl('end', { trackId: pb.trackId });
-    }
+    // v2 走结束栅栏；旧协议没有 end 动作，使用带曲目 ID 的 skip。
+    reportNaturalEnd(pb);
   }
 
   function onAudioError() {
     // 携带曲目 ID：双端同时报错或旧流迟到报错时，服务端只跳过对应曲目。
     const pb = state && state.playback;
-    if (pb && pb.trackId && sendCtl) {
+    const key = trackKey(pb);
+    if (pb && pb.trackId && sendCtl && endedSentKey !== key && pendingEndKey !== key) {
       sendCtl('skip', { trackId: pb.trackId });
     }
   }
@@ -223,13 +281,22 @@ function createSyncEngine({ sendCtl } = {}) {
   }
 
   function userNext() {
-    if (sendCtl) sendCtl('skip');
+    const pb = state && state.playback;
+    if (sendCtl) sendCtl('skip', pb && pb.trackId ? { trackId: pb.trackId } : undefined);
   }
 
   function stop() {
     stopped = true;
     loadedKey = '';
     readySentKey = '';
+    mediaReadyKey = '';
+    initialSeekKey = '';
+    endedSentKey = '';
+    pendingEndKey = '';
+    lastAudioTimeSec = NaN;
+    lastPlaybackPositionSec = NaN;
+    observedDurationSec = 0;
+    lastTimeUpdateAt = 0;
     state = null;
     try {
       audio.stop();
@@ -242,13 +309,16 @@ function createSyncEngine({ sendCtl } = {}) {
   audio.onCanplay(() => {
     const pb = state && state.playback;
     if (!pb || !pb.url) return;
+    captureMediaDuration();
+    const key = trackKey(pb);
+    mediaReadyKey = key;
     const startPos = pb.status === 'playing' ? (pb.positionSec || 0) : (pb.startAtSec || 0);
-    if (readySentKey !== trackKey(pb)) {
-      readySentKey = trackKey(pb);
+    if (initialSeekKey !== key) {
+      initialSeekKey = key;
       // 新曲 canplay 可能紧跟上一曲 seek，不能被全局冷却时间拦掉。
       trySeek(startPos);
-      if (!isLegacy(pb) && sendCtl) sendCtl('ready', { trackId: pb.trackId });
     }
+    reportReady(pb);
   });
 
   audio.onTimeUpdate(onTimeUpdate);
@@ -274,6 +344,13 @@ function createSyncEngine({ sendCtl } = {}) {
         return cur;
       }
       return targetPosition(pb, Date.now());
+    },
+    /** 实际媒体时长优先；试听流经常短于搜索结果里的完整歌曲时长 */
+    displayDuration() {
+      const pb = state && state.playback;
+      if (!pb) return 0;
+      const mediaDuration = captureMediaDuration();
+      return mediaDuration > 0 ? mediaDuration : (pb.durationSec || 0);
     },
     /** 供 UI 判断音频是否已装载（未装载 = 加载中） */
     isLoaded() {

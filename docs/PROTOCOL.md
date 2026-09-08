@@ -44,7 +44,7 @@
   },
   "queue": [ { "qid": "q…", "track": {…}, "requestedBy": "u…", "requestedByName": "小李" } ],
   "users": [ { "id": "u…", "name": "小张" } ],
-  "memberCount": 2, "serverNowMs": 1788…, "chat": [ … 最近若干条 ]
+  "onlineCount": 1, "memberCount": 2, "serverNowMs": 1788…, "chat": [ … 最近若干条 ]
 }
 ```
 
@@ -53,11 +53,11 @@
 ```
 url 为空                  → 停止旧流并显示“加载中”
 曲目/URL 变化             → 重建音频；loading/paused 先压住自动播放
-onCanplay                 → seek 到 startAtSec/positionSec，上报 ready
+onCanplay                 → seek 到 startAtSec/positionSec，上报 ready；断线失败后由同曲快照补发
 首个 ready                → 服务端建立 playing 时间线并广播
 pause/resume/seek 锚点变化 → 客户端立即 seek 对齐
 稳定 playing              → 本地音频时钟为真相，不根据周期快照硬 seek；异常只记录 [jump-audio]
-onEnded                   → 上报 ctl end + trackId；活跃端收齐或 3 秒兜底后接歌
+onEnded                   → 按媒体实际时长和末次可信进度过滤假结束，上报一次 ctl end + trackId；断线后补发
 ```
 
 云 WebSocket 不可用时，客户端使用相同消息对象经 `POST /api/v1/rooms/action` 上报，并以
@@ -67,8 +67,9 @@ onEnded                   → 上报 ctl end + trackId；活跃端收齐或 3 �
 
 客户端会按快照字段自动识别协议：含 `status` 的快照按上述 v2 状态机处理；仅含
 `isPlaying/anchorMs` 的旧快照会归一为 `playing|paused`。旧服务已自行启动时间线，客户端
-不会向它发送不支持的 `ready`，恢复播放使用旧动作 `play`；稳定播放期间也不会因轮询中
-持续变化的 `positionSec` 反复 seek。该兼容只在客户端边界生效，本地服务端仍严格使用 v2。
+不会向它发送不支持的 `ready`，恢复播放使用旧动作 `play`，自然结束使用带 `trackId` 的
+`skip`；稳定播放期间也不会因轮询中持续变化的 `positionSec` 反复 seek。该兼容只在客户端
+边界生效，本地服务端仍严格使用 v2。
 
 ## 错误码
 

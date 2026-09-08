@@ -584,6 +584,7 @@ class Room extends EventEmitter {
   // ------------------------------------------------------------ 快照
 
   snapshot(nowMs = this.now(), { withChat = true } = {}) {
+    const presentMembers = this.presentMembers();
     const view = {
       roomId: this.id,
       code: this.code,
@@ -594,7 +595,8 @@ class Room extends EventEmitter {
       seq: this.currentSeq,
       playback: this.playbackView(),
       queue: this.queue.map((e) => ({ qid: e.qid, track: e.track, requestedBy: e.requestedBy, requestedByName: e.requestedByName, addedAt: e.addedAt })),
-      users: this.presentMembers().map((m) => ({ id: m.id, name: m.name })),
+      users: presentMembers.map((m) => ({ id: m.id, name: m.name })),
+      onlineCount: presentMembers.length,
       memberCount: this.members.size,
       serverNowMs: nowMs,
     };

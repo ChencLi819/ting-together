@@ -369,6 +369,7 @@ test('快照：v2 结构完整', () => {
   assert.equal(snap.playback.trackId, 'm001');
   assert.ok(Math.abs(snap.playback.positionSec - 3) < 0.1, '快照进度应包含时间线推进');
   assert.equal(snap.users.length, 1);
+  assert.equal(snap.onlineCount, 1, '在线人数应与当前可见成员同步');
   assert.equal(snap.mode, 'free');
   assert.ok(Array.isArray(snap.chat));
 });

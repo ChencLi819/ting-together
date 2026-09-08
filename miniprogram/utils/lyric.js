@@ -49,4 +49,12 @@ function currentLineIndex(lines, posSec) {
   return idx;
 }
 
-module.exports = { parseLrc, currentLineIndex };
+/** 根据实测矩形计算滚动位置，让目标歌词的中心与可视区域中心重合。 */
+function centeredScrollTop({ currentScrollTop, viewportTop, viewportHeight, lineTop, lineHeight }) {
+  const values = [currentScrollTop, viewportTop, viewportHeight, lineTop, lineHeight].map(Number);
+  if (!values.every(Number.isFinite) || values[2] <= 0 || values[4] < 0) return 0;
+  const [scrollTop, viewTop, viewHeight, targetTop, targetHeight] = values;
+  return Math.max(0, scrollTop + targetTop - viewTop - (viewHeight - targetHeight) / 2);
+}
+
+module.exports = { parseLrc, currentLineIndex, centeredScrollTop };
