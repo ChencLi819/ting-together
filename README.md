@@ -9,7 +9,6 @@
 - 共享点歌队列与队列插播
 - 房间聊天、成员在线状态和房主迁移
 - 标准、高品、无损三档房间级音质
-- QQ 音乐、网易云音乐及可信 MusicFree 插件源
 - WebSocket 实时通道；不可用时自动降级为 HTTP 轮询
 - 新旧播放协议兼容，适配已部署的旧版云端服务
 
@@ -31,7 +30,7 @@ npm ci --prefix server
 
 ### 2. 配置服务端
 
-复制 `server/.env.example` 为 `server/.env`，按需调整环境变量。真实 `.env`、网易云 Cookie 和插件管理令牌不得提交到 Git。
+复制 `server/.env.example` 为 `server/.env`，按需调整环境变量。
 
 最小本地配置：
 
@@ -99,14 +98,12 @@ npm run pack:server
 - `NODE_ENV=production`
 - 插件功能开放时必须配置高强度 `PLUGIN_IMPORT_TOKEN`
 - 房间状态当前保存在进程内，服务副本数必须为 1
-- 使用 HTTPS/WSS 或微信云托管内部通道
-- 通过 `/healthz` 配置健康检查
 
 完整步骤见 [部署指南](docs/DEPLOY.md) 与 [运行手册](docs/RUNBOOK.md)。
 
 ## “接口1”配置
 
-搜索页中的“接口1”对应服务端的网易云音乐 Provider，代码标识为 `netease`。它不要求小程序用户登录网易云，所有搜索和取流请求均由服务端统一发起。
+搜索页中的“接口1”对应服务端的网易云音乐 Provider，代码标识为 `netease`。所有搜索和取流请求均由服务端统一发起。
 
 在 `server/.env` 或部署平台环境变量中配置：
 
@@ -143,7 +140,6 @@ NCM_COOKIE=
 
 - 不要提交 `server/.env`、Cookie、令牌、日志、`server/data/` 或部署产物。
 - `NCM_COOKIE` 属于网易云账号凭据，只能通过部署平台环境变量注入。
-- MusicFree 插件会在服务端执行第三方 JavaScript；仅导入可信来源，并限制导入权限。
 - 安全问题请通过仓库的 GitHub Security Advisory 私下报告，参见 [SECURITY.md](SECURITY.md)。
 
 ## 文档
