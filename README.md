@@ -137,8 +137,6 @@ NCM_COOKIE=
 搜索关键词、歌曲标识、音频和封面请求可能由第三方音乐服务处理。正式发布前，运营者必须按照实际部署、日志和第三方服务情况完善《小程序用户隐私保护指引》，并提供清除本地数据或退出服务的方式。
 
 ## 安全
-
-- 不要提交 `server/.env`、Cookie、令牌、日志、`server/data/` 或部署产物。
 - `NCM_COOKIE` 属于网易云账号凭据，只能通过部署平台环境变量注入。
 - MusicFree 插件会在服务端执行第三方 JavaScript；仅导入可信来源，并限制导入权限。
 - 安全问题请通过仓库的 GitHub Security Advisory 私下报告，参见 [SECURITY.md](SECURITY.md)。
