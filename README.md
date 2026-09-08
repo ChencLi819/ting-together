@@ -9,14 +9,13 @@
 - 共享点歌队列与队列插播
 - 房间聊天、成员在线状态和房主迁移
 - 标准、高品、无损三档房间级音质
-- QQ 音乐、网易云音乐及可信 MusicFree 插件源
 - WebSocket 实时通道；不可用时自动降级为 HTTP 轮询
 - 新旧播放协议兼容，适配已部署的旧版云端服务
 
 ## 技术栈
 
 - 客户端：原生微信小程序
-- 服务端：Node.js 20.19+、原生 HTTP、`ws`
+- 服务端：Node.js 20.19+、原生 HTTP、ws
 - 部署：Docker、微信云托管或其他单实例容器平台
 - 质量保障：Node Test Runner、ESLint、GitHub Actions
 
