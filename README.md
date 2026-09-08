@@ -147,7 +147,3 @@ NCM_COOKIE=
 - [REST API](docs/API.md)
 - [部署指南](docs/DEPLOY.md)
 - [运行手册](docs/RUNBOOK.md)
-
-## 许可证
-
-本仓库未附带开源许可证。在获得项目所有者明确授权前，不授予复制、修改、分发或商业使用权。
